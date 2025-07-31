@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Complete Inward Pulse with Corners</title>
+  <title>Inward Pulse Synced GIF</title>
   <style>
     body { background:#111; color:#eee; font-family:sans-serif; padding:16px; text-align: center; }
     canvas { border:1px solid #444; display:block; margin:20px auto; max-width:95vw; }
@@ -13,16 +13,17 @@
 </head>
 <body>
 
-  <h2>Inward Pulsing White Border (with Corners)</h2>
+  <h2>Inward Pulsing White Border (Preview & GIF Synced)</h2>
 
   <input type="file" id="upload" accept="image/*" />
   <br />
 
   <label>Edge Depth (px): <input type="number" id="edgeWidth" value="80"></label>
-  <label>Cycle (ms): <input type="number" id="cycleMs" value="1200"></label>
-  <label>GIF Frames: <input type="number" id="gifFrames" value="30"></label>
-  <label>GIF Delay (ms): <input type="number" id="gifDelay" value="80"></label>
+  <label>Cycle (ms): <input type="number" id="cycleMs" value="2400"></label>
+  <label>GIF Frames: <input type="number" id="gifFrames" value="60"></label>
+  <label>GIF Delay (ms): <input type="number" id="gifDelay" value="40"></label>
   <br />
+  <button id="syncBtn">Sync GIF Duration</button>
   <button id="togglePreview">Pause Preview</button>
   <button id="downloadGif">Download GIF</button>
 
@@ -39,6 +40,7 @@
     const cycleMsInput = document.getElementById('cycleMs');
     const gifFramesInput = document.getElementById('gifFrames');
     const gifDelayInput = document.getElementById('gifDelay');
+    const syncBtn = document.getElementById('syncBtn');
 
     const toggleBtn = document.getElementById('togglePreview');
     const downloadBtn = document.getElementById('downloadGif');
@@ -52,6 +54,15 @@
     function clamp(v, min, max) {
       return Math.max(min, Math.min(max, v));
     }
+
+    function syncGIFDuration() {
+      const cycle = parseInt(cycleMsInput.value, 10) || 2400;
+      const delay = parseInt(gifDelayInput.value, 10) || 40;
+      const frames = Math.round(cycle / delay);
+      gifFramesInput.value = frames;
+    }
+
+    syncBtn.addEventListener('click', syncGIFDuration);
 
     upload.addEventListener('change', e => {
       const file = e.target.files[0];
@@ -117,7 +128,7 @@
       if (!previewRunning || !img.src) return;
 
       const t = (now ?? performance.now()) - startTime;
-      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 1200, 200, 10000);
+      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 2400, 200, 10000);
       const alpha = pulseAlpha(t, cycleMs);
 
       drawFrame(alpha);
@@ -126,16 +137,16 @@
     function renderGif() {
       const w = canvas.width;
       const h = canvas.height;
-      const frames = clamp(parseInt(gifFramesInput.value, 10) || 30, 8, 120);
-      const delay = clamp(parseInt(gifDelayInput.value, 10) || 80, 10, 500);
-      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 1200, 200, 10000);
+      const frames = clamp(parseInt(gifFramesInput.value, 10) || 60, 8, 120);
+      const delay = clamp(parseInt(gifDelayInput.value, 10) || 40, 10, 500);
+      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 2400, 200, 10000);
 
       gif = new GIF({
         workers: 2,
         quality: 10,
         width: w,
         height: h,
-        workerScript: 'gif.worker.js'
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js'
       });
 
       const wasRunning = previewRunning;
@@ -152,7 +163,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'inward_pulse.gif';
+        a.download = 'inward_pulse_synced.gif';
         a.click();
         URL.revokeObjectURL(url);
         previewRunning = wasRunning;
