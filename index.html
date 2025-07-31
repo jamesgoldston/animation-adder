@@ -56,8 +56,10 @@
     }
 
     function syncGIFDuration() {
+      // Always use 16ms delay for GIF to match preview (60fps)
       const cycle = parseInt(cycleMsInput.value, 10) || 2400;
-      const delay = parseInt(gifDelayInput.value, 10) || 40;
+      const delay = 16;
+      gifDelayInput.value = delay;
       const frames = Math.round(cycle / delay);
       gifFramesInput.value = frames;
     }
@@ -137,9 +139,13 @@
     function renderGif() {
       const w = canvas.width;
       const h = canvas.height;
-      const frames = clamp(parseInt(gifFramesInput.value, 10) || 60, 8, 120);
-      const delay = clamp(parseInt(gifDelayInput.value, 10) || 40, 10, 500);
+      // Always use 16ms delay for GIF to match preview (60fps)
+      const delay = 16;
       const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 2400, 200, 10000);
+      const frames = clamp(Math.round(cycleMs / delay), 8, 120);
+
+      gifFramesInput.value = frames;
+      gifDelayInput.value = delay;
 
       gif = new GIF({
         workers: 2,
