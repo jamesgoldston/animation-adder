@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Complete Inward Pulse with Corners</title>
+  <style>
+    body { background:#111; color:#eee; font-family:sans-serif; padding:16px; text-align: center; }
+    canvas { border:1px solid #444; display:block; margin:20px auto; max-width:95vw; }
+    input[type="number"] { width:70px; }
+    button { padding:8px 12px; margin: 10px; }
+    label { margin-right:12px; }
+  </style>
+</head>
+<body>
+
+  <h2>Inward Pulsing White Border (with Corners)</h2>
+
+  <input type="file" id="upload" accept="image/*" />
+  <br />
+
+  <label>Edge Depth (px): <input type="number" id="edgeWidth" value="80"></label>
+  <label>Cycle (ms): <input type="number" id="cycleMs" value="1200"></label>
+  <label>GIF Frames: <input type="number" id="gifFrames" value="30"></label>
+  <label>GIF Delay (ms): <input type="number" id="gifDelay" value="80"></label>
+  <br />
+  <button id="togglePreview">Pause Preview</button>
+  <button id="downloadGif">Download GIF</button>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.min.js"></script>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const edgeWidthInput = document.getElementById('edgeWidth');
+    const cycleMsInput = document.getElementById('cycleMs');
+    const gifFramesInput = document.getElementById('gifFrames');
+    const gifDelayInput = document.getElementById('gifDelay');
+
+    const toggleBtn = document.getElementById('togglePreview');
+    const downloadBtn = document.getElementById('downloadGif');
+
+    let img = new Image();
+    let previewRunning = true;
+    let startTime = 0;
+    let animFrameId = null;
+    let gif = null;
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    upload.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          startTime = performance.now();
+          if (!animFrameId) animate();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    toggleBtn.addEventListener('click', () => {
+      previewRunning = !previewRunning;
+      toggleBtn.textContent = previewRunning ? 'Pause Preview' : 'Resume Preview';
+      if (previewRunning && !animFrameId) {
+        startTime = performance.now();
+        animate();
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!img.src) return;
+      renderGif();
+    });
+
+    function drawFrame(alpha) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const edge = clamp(parseInt(edgeWidthInput.value, 10) || 80, 1, Math.min(w, h) / 2);
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
+
+      // Edges
+      ctx.fillRect(edge, 0, w - 2 * edge, edge); // Top
+      ctx.fillRect(edge, h - edge, w - 2 * edge, edge); // Bottom
+      ctx.fillRect(0, edge, edge, h - 2 * edge); // Left
+      ctx.fillRect(w - edge, edge, edge, h - 2 * edge); // Right
+
+      // Corners
+      ctx.fillRect(0, 0, edge, edge); // Top-left
+      ctx.fillRect(w - edge, 0, edge, edge); // Top-right
+      ctx.fillRect(0, h - edge, edge, edge); // Bottom-left
+      ctx.fillRect(w - edge, h - edge, edge, edge); // Bottom-right
+    }
+
+    function pulseAlpha(t, cycleMs) {
+      const phase = (t % cycleMs) / cycleMs;
+      return 0.5 * (1 - Math.cos(2 * Math.PI * phase)); // 0→1→0
+    }
+
+    function animate(now) {
+      animFrameId = requestAnimationFrame(animate);
+      if (!previewRunning || !img.src) return;
+
+      const t = (now ?? performance.now()) - startTime;
+      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 1200, 200, 10000);
+      const alpha = pulseAlpha(t, cycleMs);
+
+      drawFrame(alpha);
+    }
+
+    function renderGif() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const frames = clamp(parseInt(gifFramesInput.value, 10) || 30, 8, 120);
+      const delay = clamp(parseInt(gifDelayInput.value, 10) || 80, 10, 500);
+      const cycleMs = clamp(parseInt(cycleMsInput.value, 10) || 1200, 200, 10000);
+
+      gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: w,
+        height: h,
+        workerScript: 'gif.worker.js'
+      });
+
+      const wasRunning = previewRunning;
+      previewRunning = false;
+
+      for (let i = 0; i < frames; i++) {
+        const t = (i / frames) * cycleMs;
+        const alpha = pulseAlpha(t, cycleMs);
+        drawFrame(alpha);
+        gif.addFrame(canvas, { copy: true, delay });
+      }
+
+      gif.on('finished', blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'inward_pulse.gif';
+        a.click();
+        URL.revokeObjectURL(url);
+        previewRunning = wasRunning;
+      });
+
+      gif.render();
+    }
+
+    animate();
+  </script>
+</body>
+</html>
